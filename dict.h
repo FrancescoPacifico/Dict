@@ -63,8 +63,8 @@ struct couple {
 };
 
 struct node {
-	struct couple valore; //every node is made of a couple - ogni nodo contiene una coppia
-	struct nodo *prec, *succ; //the way it works is the same of an integers list - funziona come una lista di interi
+	struct couple value; //every node is made of a couple - ogni nodo contiene una coppia
+	struct nodo *prev, *succ; //the way it works is the same of an integers list - funziona come una lista di interi
 };
 
 /* ENG:
@@ -79,111 +79,203 @@ struct dictionary {
 };
 
 //CatLists prototypes - Prototipi Liste Concatenate
-struct node *nuovaLista(void);
-struct node *append0(struct nodo *, struct coppia);
-struct node *append1(struct nodo *, struct coppia);
-struct node *delete0(struct nodo *);
-struct node *delete1(struct nodo *);
+struct node *newList(void);
+struct node *append0(struct node *, struct couple);
+struct node *append1(struct node *, struct couple);
+struct node *pop0(struct node *);
+struct node *pop1(struct node *);
 
-//prototipi dizionario
-int isPrimo(int); //usata dalla funzione nuovoDizionario per verificare se la dimensione in input è un numero primo.
-int nextPrimo(int, int); //restituisce il primo numero primo successivo all'intero in input.
-struct dizionario nuovoDizionario(int); //crea un nuovo dizionario con un vettore di dimensione m. Ogni lista di trabocco è vuota.
+//Dictionaries prototypes - Prototipi Dizionari
+int isPrime(int);
+int nextPrime(int, int);
+struct dictionary newDictionary(int);
 int hash(char *, int);
-struct nodo *isKeyIn(struct dizionario, char *);
-struct dizionario estendiDizionario(struct dizionario, int);
-struct dizionario addCoppia(struct dizionario, struct coppia);
-struct dizionario removeCoppia(struct dizionario, char *);
-void stampaDizionario(struct dizionario);
+struct node *isKeyIn(struct dictionary, char *);
+struct dictionary extendDictionary(struct dictionary, int);
+struct dictionary addCouple(struct dictionary, struct couple);
+struct dictionary removeCouple(struct dictionary, char *);
+void printDictionary(struct dictionary);
 
-//prototipi di utilità
+//Utility prototypes - Prototipi di utilità
+
+/* ENG:
+ * We'll need these functions later.
+ * ITA:
+ * Avremo bisogno di queste funzioni dopo.
+ */
+
 char *itoa(int);
 void reverse(char *);
 
-//operazioni sulle liste
-struct nodo *nuovaLista(void) {
+/* ENG:
+ * Here we have the main functions to manage a CatList.
+ * They are like the ones I used in my CatList repository, but this time we'll use a struct Couple as a value in the nodes of the lists,
+ * so we have a couple more instructions, because the value in each node is a Couple of two elements.
+ * ITA:
+ * Di seguito abbiamo le funzioni principali per gestire una Lista Concatenata.
+ * Sono uguali a quelle che ho usato nella mia repository sulle Liste Concatenate, ma questa volta useremo una struct Coppia (Couple) come valore nei nodi delle liste,
+ * dunque abbiamo un paio di istruzioni in più, poichè il valore in ogni nodo è una Coppia di due elementi.
+ */
+
+struct node *newList(void) {
 	return NULL;
 }
-struct nodo *append0(struct nodo *a, struct coppia v) {
-	struct nodo *p = malloc(sizeof(struct nodo));
-	p -> valore.k = malloc(strlen(v.k) + 1), p -> valore.f = v.f, p -> prec = NULL, p -> succ = a;
-	strcpy(p -> valore.k, v.k);
+struct node *append0(struct node *a, struct couple v) {
+	struct node *p = malloc(sizeof(struct node));
+	p -> value.k = malloc(strlen(v.k) + 1), p -> value.f = v.f, p -> prev = NULL, p -> succ = a;
+	strcpy(p -> value.k, v.k);
 	if(a != NULL) {
-		a -> prec = p;
+		a -> prev = p;
 	}
 	return p;
 }
-struct nodo *append1(struct nodo *a, struct coppia v) {
-	struct nodo *p;
+struct node *append1(struct node *a, struct couple v) {
+	struct node *p;
 	if(a != NULL) {
-		p = malloc(sizeof(struct nodo));
-		p -> valore.k = malloc(strlen(v.k) + 1), p -> valore.f = v.f, p -> prec = a, p -> succ = a -> succ;
-		strcpy(p -> valore.k, v.k);
+		p = malloc(sizeof(struct node));
+		p -> value.k = malloc(strlen(v.k) + 1), p -> value.f = v.f, p -> prev = a, p -> succ = a -> succ;
+		strcpy(p -> value.k, v.k);
 		a -> succ = p;
 		if(p -> succ != NULL) {
-			p -> succ -> prec = p;
+			p -> succ -> prev = p;
 		}
 	}
 	return a;
 }
-struct nodo *delete0(struct nodo *a) {
-	struct nodo *temp = a;
+struct node *pop0(struct node *a) {
+	struct node *temp = a;
 	a = a -> succ;
-	a -> prec = NULL;
-	free(temp -> valore.k);
+	a -> prev = NULL;
+	free(temp -> value.k);
 	free(temp);
 	return a;
 }
-struct nodo *delete1(struct nodo *a) {
-	struct nodo *temp = a -> succ;
+struct node *pop1(struct node *a) {
+	struct node *temp = a -> succ;
 	a -> succ = temp -> succ;
 	if(a -> succ != NULL)  {
-		a -> succ -> prec = a;
+		a -> succ -> prev = a;
 	}
-	free(temp -> valore.k);
+	free(temp -> value.k);
 	free(temp);
 	return a;
 }
 
-//operazioni sul dizionario
-int isPrimo(int m) {
-	int divisore;
-	for(divisore = 2; divisore <= m; divisore++) {
-		if(m % divisore == 0) {
+/* ENG:
+ * Here begins the "new stuff". We introduce the main functions to manage a dictionary.
+ * As you can read in the point (9) of the big comment at the beginning, it's better to give to c (the number of cells of the Dynamic Array) a prime value.
+ * So here we define two functions that will help us understanding if a number is prime and to find the successive prime number of an integer taken as input.
+ * ITA:
+ * Qui cominciano le "cose nuove". Introduciamo le funzioni principali per gestire un dizionario.
+ * Come potete leggere nel punto (9) del lungo commento iniziale, è meglio dare a c (il numero di celle dell'Array Dinamico) un valore primo.
+ * Dunque qui definiamo due funzioni che ci aiuteranno a capire se un numero è primo e a trovare il successivo numero primo di un intero preso in input.
+ */
+
+/* ENG:
+ * This function returns 1 if the input number is prime, else returns 0.
+ * It's not useful to understand how this function works now.
+ * ITA:
+ * Questa funzione restituisce 1 se il numero in input è primo, 0 altrimenti.
+ * Non è utile cercare di capire come funziona ora.
+ */
+
+int isPrime(int m) {
+	int divider;
+	for(divider = 2; divider <= m; divider++) {
+		if(m % divider == 0) {
 			break;
 		}
 	}
-	return (divisore == m) ? 1 : 0;
+	return (divider == m) ? 1 : 0;
 }
-int nextPrimo(int m, int k) {
+
+/* ENG:
+ * This function finds the k times next prime number of m exploiting a simple recursive algorithm made by me.
+ * It's not useful to understand how this function works now.
+ * ITA:
+ * Questa funzione trova il k-esimo numero primo successivo a m sfruttando un semplice algoritmo ricorsivo fatto da me.
+ * Non è utile cercare di capire come funziona ora.
+ */
+int nextPrime(int m, int k) {
 	if(k == 0) {
-		if(isPrimo(m) == 1) {
+		if(isPrime(m) == 1) {
 			return m;
 		}
-		return nextPrimo(m + 1, 0);
+		return nextPrime(m + 1, 0);
 	}
 	m++;
-	while(isPrimo(m) == 0) {
+	while(isPrime(m) == 0) {
 		m++;
 	}
-	return nextPrimo(m, k - 1);
+	return nextPrime(m, k - 1);
 }
-struct dizionario nuovoDizionario(int m) {
-	struct dizionario output;
-	m = (isPrimo(m) == 1) ? m : nextPrimo(m, 1); //m mantiente il suo valore se primo, altrimenti assume il valore del successivo numero primo
-	output.c = m, output.n = 0, output.vettore = malloc(m * sizeof(struct nodo *)); //assegno i valori adatti al nuovo dizionario
+
+/* ENG:
+ * The function below creates a new Dictionary made of a Dynamic Array with m cells, with m taken as input.
+ * If the value given is not a prime number, m is re-set with nextPrime to the next prime number.
+ * Obviously the c value associated to the Dynamic Array must be set to m and the n value must be set to 0, becasue there's still no couple in the dictionary.
+ * We must alloc enough memory to the dynArray pointer: it must contain m pointers to node, so we alloc 'm * sizeof(struct node *)' memory.
+ * Then we use a for cycle to create a new void list for each cell of the Dynamic Array.
+ * ITA:
+ * La funzione sotto crea un nuovo Dizionario fatto da un Array Dinamico con m celle, con m preso in input.
+ * Se il valore dato non è un numero primo, m è reimpostato con la funzione nextPrime al numero primo successivo.
+ * Ovviamente il valore c associato all'Array Dinamico deve essere impostato a m e il valore n a 0, perchè non ci sono ancora coppie nel dizionario.
+ * Dobbiamo allocare abbastanza memoria per il puntatore dynArray: esso deve contenere m puntatori a nodo, dunque allochiamo 'm * sizeof(struct node *)' memoria.
+ * Poi usiamo un ciclo for per creare una nuova lista vuota per ogni cella dell'Array Dinamico.
+ */
+
+struct dictionary newDictionary(int m) {
+	struct dictionary output;
+	m = (isPrime(m) == 1) ? m : nextPrime(m, 1);
+	output.c = m, output.n = 0, output.dynArray = malloc(m * sizeof(struct nodo *));
 	for(m = 0; m < output.c; m++) {
-		output.vettore[m] = nuovaLista(); //ogni posizione nel vettore del dizionario rappresenta una lista vuota
+		output.dynArray[m] = newList();
 	}
 	return output;
 }
+
+/* ENG:
+ * The one below is probably one of the most important functions.
+ * It takes a string (the key of a couple) and the c value of a dictionary (the m parameter) as input and returns an integer called temp here.
+ * In order to understand how this function works, you must know how the ^ operator works.
+ * It's the bit-to-bit xor operator. To understand how it works let's make an example:
+ * a = 12 (decimal) = 1100 (binary)
+ * b = 6 (decimal) = 0110 (binary)
+ * c = a ^ b = 1010 (binary) = 10 (decimal)
+ * When two digits are equal (1 and 1 or 0 and 0) the xor between these two digits is 0, while it's 1 when they are different.
+ * The bit-to-bit xor operator (^) does it for every couple of bits: one from the first operand and the corresponding for position from the second operand.
+ * We want to use this operator between every couple of adjavent characters in the key string:
+ * If the key string is "Hello", then we want to return the result of 'H' xor 'e' xor 'l' xor 'l' xor 'o'. (remember that a character must be considered as a small integer).
+ * To achieve this we use a while cycle.
+ * Every char of the key string is obviously made of 8 bits, so the result of this cycle will be an 8 bits integer, so a not negative number <= 255.
+ * We want this number to be "compatible" with our Dynamic Array, so to have a value that represents a valid index; that's why we use the % operator.
+ * ITA:
+ * Quella qui sotto è probabilmente una delle funzioni più importanti.
+ * Prende in input una stringa (la chiave della coppia) e il valore c di un dizionario (il parametro m) e restituisce un intero chiamato temp qui.
+ * Per capire come funziona l'algoritmo, occorre sapere come funziona l'operatore ^.
+ * Esso è l'operatore xor bit a bit. Per capire come funziona facciamo un esempio:
+ * a = 12 (base dieci) = 1100 (base due)
+ * b = 6 (base dieci) = 0110 (base due)
+ * c = a ^ b = 1010 (base due) = 10 (base dieci)
+ * Quando due cifre sono uguali (1 e 1 oppure 0 e 0) lo xor tra di esse è 0, mentre è 1 quando sono diverse.
+ * L'operatore xor bit a bit (^) fa questo per ogni coppia di bit: uno del primo operando e il corrispondente per posizione del secondo operando.
+ * Vogliamo usare questo operatore tra tutte le coppie di caratteri adiacenti nella stringa chiave:
+ * Se la stringa chiave è "Ciao", allora vogliamo restituire il risultato di 'C' xor 'i' xor 'a' xor 'o'. (ricorda che un carattere deve essere considerato come un intero piccolo).
+ * Per fare ciò usiamo un ciclo while.
+ * Ogni carattere della stringa è ovviamente di 8 bit, dunque il risultato di questo ciclo sarà un intero di 8 bit, dunque un numero non negativo <= 255.
+ * Vogliamo che questo numero sia "compatibile" con il nostro Array Dinamico, dunque che abbia un valore che rappresenti un indice valido; per questo usiamo l'operatore %. 
+ */
+
 int hash(char *k, int m) {
 	char temp = *k++;
-	while(*k++) { //scorro i caratteri della chiave finchè non raggiungo '\0'
-		temp ^= *k; //ad ogni ciclo calcolo lo xor bit a bit
+	while(*k++) {
+		temp ^= *k;
 	}
-	return temp % m; //questo numero è compreso tra 0 e m - 1 per m < 256
+	return temp % m;
 }
+
+/* */
+
 struct nodo *isKeyIn(struct dizionario input, char *chiave) {
 	int h = hash(chiave, input.c);
 	struct nodo *temp = input.vettore[h]; //dichiaro un puntatore all'inizio della lista di trabocco
