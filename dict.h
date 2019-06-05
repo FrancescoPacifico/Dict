@@ -97,17 +97,6 @@ struct dictionary addCouple(struct dictionary, struct couple);
 struct dictionary removeCouple(struct dictionary, char *);
 void printDictionary(struct dictionary);
 
-//Utility prototypes - Prototipi di utilità
-
-/* ENG:
- * We'll need these functions later.
- * ITA:
- * Avremo bisogno di queste funzioni dopo.
- */
-
-char *intToArray(int);
-void reverse(char *);
-
 /* ENG:
  * Here we have the main functions to manage a CatList.
  * They are like the ones I used in my CatList repository, but this time we'll use a struct Couple as a value in the nodes of the lists,
@@ -397,6 +386,7 @@ struct dictionary removeCouple(struct dictionary input, char *key) {
 		else {
 			temp -> prev = pop1(temp -> prev);
 		}
+		input.n--;
 	}
 	return input;
 }
@@ -416,39 +406,64 @@ void printDictionary(struct dictionary input) {
 		printf("%d -->\t", i);
 		temp = input.dynArray[i];
 		for(; temp != NULL; temp = temp -> succ) {
-			printf("(\"%s\", %0.1f), ", temp -> value.k, temp -> value.f);
+			printf("(\"%s\", %0.3f), ", temp -> value.k, temp -> value.f);
 		}
 		printf("\n");
 	}
 }
 
 /* ENG:
- * These are utility functions that were built to be used in the main function, to help to create a dictionary with a cycle.
- * The firt one converts an integer into a string, the second one is used by the first to reverse the string created.
+ * Calculating the cost of these function is not very easy.
+ * The dictionary, as we built it, keeps the number of nodes for each CatList lower than a certain constant (MAXLENGTH), or, at least, it happens
+ * in the average case. In fact, we rely on the hash function to evenly distribute the nodes among the indexes of the Dynamic Array.
+ * But it doesn't always happen, in fact, if we try to build and print a dictionary from the main function, we can notice that some lists have more nodes (many of them sometimes)
+ * than others and, generally, more than the constant.
+ * This happens becasue the hash function can't perfectly distribute the strings, both becasue when it calculates the index of two different strings, it can obatin the same result,
+ * and because strings are distributed in a limited space.
+ * But, let's suppose that we had exactly less than MAXLENGTH nodes for each list, and that the hash function worked perfectly to keep this condition.
+ * It will come the time when every CatList contains exactly MAXLENGTH nodes, except one of them that has MAXLENGTH - 1 nodes. When a new node will be added, the n / c
+ * ratio will be exactly MAXLENGTH and this is the time when the extendDictionary function will be called, which, by re-distributing the couples in the dictionary (by always using the hash function but with
+ * the new length of the Dynamic Array) will have every new list less than MAXLENGTH nodes (THIS IS AN HYPOTHETICAL CASE, THIS WILL NEVER HAPPEN).
+ * The actuality is that this case only happens in an approximate way, so, when the condition n / c >= MAXLENGTH to extend the dictionary is achieved, we don't have, in that moment,
+ * exactly MAXLENGTH nodes in each CatList, and it's certain that, during the re-distribution of the couples by extendDictionary, the couples will be distributed evenly.
+ * So, right after the dictionary extension, we could already have lists with more than MAXLENGTH elements.
+ * Nevertheless, the job made by the hash function is not so bad to completely cancel its utility. In fact, it's thanks to this function that the costs of many functions
+ * are drastically reduced IN THE AVERAGE CASE, namely the case in which we can say that ON AVERAGE there are MAXLENGTH node in each CatList.
+ * Before analyzing the costs it's necessary to remember that "to reach" an index in an array requires constant time, while to move inside a CatList requires, in the worst case,
+ * a time linear in the list length (that is scrolling each node of it).
+ * The functions to search, add and remove couples have, IN THE AVERAGE CASE, a cost linear in MAXLENGTH.
+ * This statement is true becasue:
+ * 1) When I look for a key in the dictionary, I first calculate the corresponding index with the hash function, that makes a number of instructions that depends on the length of the string (negligible, because it doesn't depend on the number of couples in the dictionary).
+ * 2) I reach that index in a Dynamic Array in constant time.
+ * 3) I scroll the corresponding CatList that, IN THE AVERAGE CASE, has MAXLENGTH node at most, so the time to scroll it is linear in MAXLENGTH.
+ * 4) The cost is the same in the functions to add and remove couples, becasue the instructions are quite similar.
+ * The function to extend the dictionary and the one to print it have instead an easily calculable cost. In fact, they necessarely have to scroll each node of each CatList
+ * in the dictionary. So their cost is linear in n.
  * ITA:
- * Queste sono funzioni di utilità che sono state costruite per essere usate nella funzione main, per aiutare a costruire un dizionario con un ciclo.
- * La prima converte un intero in una stringa, la seconda è utilizzata dalla prima per ribaltare la stringa creata.
+ * Calcolare il costo di queste funzioni non è molto semplice.
+ * Il dizionario, così come lo abbiamo costruito, mantiene il numero di nodi per ogni Lista Concatenata inferiore ad una certa costante (MAXLENGTH), o almeno così
+ * è nel caso medio. Infatti, noi facciamo affidamento alla funzione hash per far sì che i nodi vengano distribuiti omogeneamente tra gli indici dell'Array Dinamico.
+ * Ma questo non sempre avviene, anzi, provando a generare qualche dizionario dalla funzione main e stampandolo, ci accorgiamo che alcune liste avranno più nodi (anche molti a volte)
+ * rispetto ad altre e, in generale, rispetto alla costante che abbiamo stabilito.
+ * Questo avviene perchè la funzione hash non è in grado di distribuire in maniera perfetta le stringhe, sia perchè calcolando l'indice corrispondente a due stringhe diverse può ottenere lo stesso risultato,
+ * sia perchè la distribuzione delle stringhe avviene in uno spazio limitato.
+ * Assumiamo però di avere esattamente meno di MAXLENGTH nodi per ogni lista, e che la funzione di hash lavori perfettamente, in modo da mantenere questa condizione.
+ * Arriverà un momento in cui ogni Lista Concatenata contiene esattamente MAXLENGTH nodi, tranne una che ne contiene MAXLENGTH - 1. Quando andremo ad aggiungere un nuovo nodo, il rapporto
+ * n / c sarà esattamente uguale a MAXLENGTH, ed è allora che verrà invocata la funzione extendDictionary, la quale, ri-distribuendo le coppie nel dizionario (usando sempre la funzione hash, ma sulla nuova
+ * lunghezza dell'Array Dinamico) farà in modo che tutte le nuove liste abbiano meno di MAXLENGTH nodi (QUESTO E' UN CASO IMMAGINARIO, CIO' NON AVVERRA' MAI).
+ * La realtà è che questa situazione si verifica solamente in maniera approssimata, dunque, quando viene raggiunta la condizione n / c >= MAXLENGTH per estendere il dizionario, in realtà
+ * in quel momento, non abbiamo esattamente MAXLENGTH coppie per ogni Lista Concatenata e non è detto che durante la ri-distribuzione delle coppie da parte di extendDictionary,
+ * queste vengano a loro volta distribuite omogeneamente. Dunque, subito dopo l'estensione del dizionario, potremmo avere già liste che hanno superato i MAXLENGTH elementi.
+ * Nonostante ciò, il lavoro svolto dalla funzione hash non è così pessimo da vanificare completamente la sua utilità. Anzi, è proprio grazie a questa funzione che i costi
+ * di molte funzioni si riducono drasticamente NEL CASO MEDIO, cioè il caso in cui possiamo dire che MEDIAMENTE ci sono MAXLENGTH nodi per ogni Lista Concatenata.
+ * Prima di analizzare i costi è necessario ricordare che "raggiungere" un indice all'interno di un array richiede tempo costante, mentre muoversi all'interno di una
+ * Lista Concatenata richiede, nel caso peggiore, tempo lineare nella lunghezza della lista (ovvero scorrere tutti i nodi di essa).
+ * Le funzioni di ricerca, aggiunta e rimozione hanno, NEL CASO MEDIO, un costo lineare in MAXLENGTH.
+ * Questa affermazione è vera perchè:
+ * 1) Quando cerco una chiave nel dizionario, prima ne calcolo l'indice corrispondente con hash, che fa un numero di operazioni dipendente dalla lunghezza della stringa (trascurabile perchè non dipende dal numero di coppie nel dizionario).
+ * 2) Raggiungo tale indice in un Array Dinamico in tempo costante.
+ * 3) Scorro la corrispondente Lista Concatenata che, NEL CASO MEDIO, ha al massimo MAXLENGTH nodi, dunque il tempo impiegato per scorrerla è lineare in MAXLENGTH.
+ * 4) Il costo è lo stesso nelle funzioni di aggiunta e rimozione perchè le operazioni svolte sono pressochè le stesse.
+ * La funzione di estensione del dizionario e quella per stamparlo hanno invece un costo facilmente calcolabile. Esse, infatti, devono necessariamente scorrere ogni coppia di ogni Lista Concatenata
+ * nel dizionario. Dunque il costo di queste funzioni è lineare in n.
  */
-
-char *intToArray(int n) {
-	char *output;
-	output = malloc((int) ceil(log10(n)) + 1);
-	int digit, i;
-	for(i = 0; n > 0; n /= 10, i++) {
-		digit = n % 10;
-		output[i] = '0' + digit;
-	}
-	output[i] = '\0';
-	reverse(output);
-	return output;
-}
-
-void reverse(char *v) {
-	int i, j;
-	char temp;
-	for(i = 0, j = strlen(v) - 1; i < j; i++, j --) {
-		temp = v[i];
-		v[i] = v[j];
-		v[j] = temp;
-	}
-}
