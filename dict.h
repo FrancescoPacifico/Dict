@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 /* ENG:
  * A dictionary is a quite complex structure of datas that associates a key to a value. Every key is unique, but more
@@ -20,7 +21,7 @@
  * 4) When a string "obatins" its corresponding index thanks to the hash function, we append the couple identified by that string to the TOP of the CatList at that index.
  * 5) We use a Dynamic Array as "bearing structure" and not a "normal array" because we want something that can be extended when needed.
  * 6) We want to keep the number of Couples in every CatList under a certain value (we'll define a constant below), we'll see why later.
- * 7) To keep the number of Couples in every CatList under this constant we need to keep the n / c ratio <= constant.
+ * 7) To keep the number of Couples in every CatList under this constant we need to keep the n / c ratio < constant.
  * 8) In the Dynamic Array struct: c is the number of CELLS of the array, while n is the total number of COUPLES in the whole dictionary.
  * 9) To have a better result from the hash function it's better for c to be a prime number. We'll build a function to achieve this.
  * ITA:
@@ -40,7 +41,7 @@
  * 4) Quando una stringa "ottiene" il suo indice corrispondente grazie alla funzione hash, aggiungiamo la coppia identificata da tale stringa IN CIMA alla Lista Concatenata a tale indice.
  * 5) Usiamo un Array Dinamico come "struttura portante" e non un "array classico" perchè vogliamo qualcosa che possa essere esteso quando necessario.
  * 6) Vogliamo mantenere il numero di Coppie in ogni Lista Concatenata sotto un certo valore (definiremo una cosante sotto), vedermo il perchè dopo.
- * 7) Per mantenere il numero di Coppie sotto tale costante abbiamo bisogno di mantenere il rapporto n / c <= costante.
+ * 7) Per mantenere il numero di Coppie sotto tale costante abbiamo bisogno di mantenere il rapporto n / c < costante.
  * 8) Nella struct Array Dinamico: c è il numero di CELLE dell'array, mentre n è il numero totale di COPPIE nell'intero dizionario.
  * 9) Per ottenere un risultato migliore dalla funzione hash è meglio che c sia un numero primo. Costruiremo una funzione per questo.
  */
@@ -48,14 +49,14 @@
 /* ENG:
  * This constant identifies the maximum number of nodes (Couples) for every CatList.
  * By dynamically modifying the dimension of the Dynamic Array that composes the Dictionary, it's
- * possible to keep the n / c ratio constant when you add more couples.
+ * possible to keep the n / c ratio < constant when you add more couples.
  * ITA:
  * Questa costante indica il numero massimo di nodi per ogni Lista Concatenata.
  * Modificando dinamicamente la dimensione del vettore nel dizionario, è possibile
- * mantenere il rapporto n / c costante all'aumentare delle coppie presenti.
+ * mantenere il rapporto n / c < costante all'aumentare delle coppie presenti.
  */
 
-#define MAXLENGHT 5
+#define MAXLENGTH 5
 
 struct couple {
 	char *k; //key string - stringa chiave
@@ -64,7 +65,7 @@ struct couple {
 
 struct node {
 	struct couple value; //every node is made of a couple - ogni nodo contiene una coppia
-	struct nodo *prev, *succ; //the way it works is the same of an integers list - funziona come una lista di interi
+	struct node *prev, *succ; //the way it works is the same of an integers list - funziona come una lista di interi
 };
 
 /* ENG:
@@ -104,7 +105,7 @@ void printDictionary(struct dictionary);
  * Avremo bisogno di queste funzioni dopo.
  */
 
-char *itoa(int);
+char *intToArray(int);
 void reverse(char *);
 
 /* ENG:
@@ -274,90 +275,168 @@ int hash(char *k, int m) {
 	return temp % m;
 }
 
-/* */
+/* ENG:
+ * We said that every key in the dictionary must be unique. So, when we add a new couple to a dictionary, we must first check if the key of this couple
+ * is already used in a couple of the dictionary. If we find it we update its corresponding value, else we add the entire new couple.
+ * This function helps us checking if a key is in the dictionary. It takes a dictionary and a string (key) as input. It first calculates the index of the Dynamic Array where
+ * that string should be using the hash function, then it checks every node of the CatList at that index to see if there's a couple with that key.
+ * To keep everything cleaner I used a support pointer to node in the while cycle. To check if the input key is equal to one of the couples keys I used the strcmp function from the string header.
+ * This function returns 0 only when its two arguments are equal, so I run the cycle until there's a node to check and until I don't find a correspondence.
+ * If no correspondence was found the function returns NULL, else it returns a pointer to the node that contains the couple with that key.
+ * ITA:
+ * Abbiamo detto che ogni chiave nel dizionario deve essere unica. Dunque, quando aggiungiamo una nuova coppia ad un dizionario, dobbiamo prima controllare se la chiave di questa coppia
+ * è già utilizzata in una coppia del dizionario. Se la troviamo aggiorniamo il suo valore corrispondente, altrimenti aggiungiamo interamente la nuova coppia.
+ * Questa funzione ci aiuta a controllare se una chiave è nel dizionario. Prende in input un dizionario e una stringa (chiave). Prima calcola l'indice dell'Array Dinamico in cui
+ * dovrebbe essere quella stringa usando la funzione hash, poi controlla ogni nodo della Lista Concatenata a quell'indice per vedere se c'è una coppia con tale chiave.
+ * Per mantenere il tutto più pulito ho usato un puntatore a nodo di supporto nel ciclo while. Per controllare se la chiave in input è uguale a una delle chiavi delle coppie ho usato la funzione strcmp
+ * dell'intestazione string. Questa funzione restituisce 0 solo qunado i suoi due argomenti sono uguali, quindi eseguo il ciclo finchè ci sono nodi da controllare e finchè non trovo una corrispondenza.
+ * Se non viene trovata alcuna corrispondenza la funzione restituisce NULL, altrimenti restituisce un puntatore al nodo che contiene la coppia con tale chiave.
+ */
 
-struct nodo *isKeyIn(struct dizionario input, char *chiave) {
-	int h = hash(chiave, input.c);
-	struct nodo *temp = input.vettore[h]; //dichiaro un puntatore all'inizio della lista di trabocco
-	while(temp != NULL && strcmp(temp -> valore.k, chiave) != 0) { //"incremento" tale puntatore finchè non trovo una chiave uguale e finchè la lista ha elementi
+struct node *isKeyIn(struct dictionary input, char *key) {
+	int h = hash(key, input.c);
+	struct node *temp = input.dynArray[h];
+	while(temp != NULL && strcmp(temp -> value.k, key) != 0) {
 		temp = temp -> succ;
 	}
-	return temp; //restituisce NULL se non ha trovato corrispondenze, altrimenti un puntatore al nodo che contiene la chiave
+	return temp;
 }
-struct dizionario estendiDizionario(struct dizionario input, int m) {
-	struct dizionario output = nuovoDizionario(m); //creo un dizionario della dimensione in input
-	int i;
-	struct nodo *temp;
-	for(i = 0; i < input.c; i++) {
-		temp = input.vettore[i];
-		for(; temp != NULL; temp = temp -> succ) {
-			/* copio le coppie del vecchio dizionario in quello nuovo usando la stessa funzione chiamante (addCoppia) senza il pericolo di capitare in un loop infinito
-			 * che avverrebbe entrando nell'if(input.n / input.c) >= MAXLENGHT della funzione addCoppia. Questo pericolo è ovviamente evitato grazie al fatto che la dimensione
-			 * del vettore del nuovo dizionario è tale che la disuguaglianza sopra citata non potrà mai essere vera*/
-			output = addCoppia(output, temp -> valore);
-		}
-	}
-	return output;
-}
-struct dizionario addCoppia(struct dizionario input, struct coppia inCoppia) {
-	struct nodo *temp = isKeyIn(input, inCoppia.k); //verifico se la chiave in input si trova già nel dizionario (la verifica avviene su una copia del dizionario in input)
+
+/* ENG:
+ * Now we must build a function to actually insert a couple in a dictionary, or to update the value in a couple if the key of the input couple already exists.
+ * So we first call the isKeyIn function with the input dictionary and the input couple key as parameters. If this function returns something different from NULL, it means there's
+ * already a couple with that key, so we just need to update its value.
+ * Else, it means there's no couple with that key, so we append the entire couple to the top of the CatList at the index given by hash function.
+ * Just if we added an entire new couple we must increase n, because there's a new couple in the dictionary.
+ * We said that we must keep the n / c ratio < constant (MAXLENGTH), so if the condition n / c >= MAXLENGTH is true after we added the couple, the Dynamic Array of the dictionary must be extended 
+ * by creating a larger one and every couple of the old dictionary must be re-assigned to the new one.
+ * To do this we must first calculate the next prime number to the actual dimension; to do this we use the nextPrime function. Then we pass the value returned, together with the old dictionary,
+ * to the extendDictionary function, that's described later.
+ * ITA:
+ * Ora dobbiamo costruire una funzione per inserire effettivamente una coppia in un dizionario, o per aggiornare il valore in una coppia se la chiave della coppia in input già esiste.
+ * Quindi prima chiamiamo la funzione isKeyIn con il dizionario in input e la chiave della coppia in input come parametri. Se questa funzione restituisce qualcosa diverso da NULL, significa
+ * che c'è già una coppia con tale chiave, dunque dobbiamo solo aggiornare il suo valore.
+ * Altrimenti, significa che non c'è alcuna coppia con quella chiave, dunque aggiungiamo l'intera coppia in testa alla Lista Concatenata all'indice restituito dall funzione hash.
+ * Solo se abbiamo aggiunto una coppia intera nuova dobbiamo incrementare n, perchè c'è una nuova coppia nel dizionario.
+ * Abbiamo detto che dobbiamo mantenere il rapporto n / c < costante (MAXLENGTH), dunque se la condizione n / c >= MAXLENGTH è vera dopo aver aggiunto la coppia, l'Array Dinamico del dizionario deve essere esteso creandone
+ * uno più spazioso e ogni coppia del vecchio dizionario deve essere ri-assegnata a quello nuovo.
+ * Per fare ciò dobbiamo prima calcolare il numero primo successivo alla dimensione attuale; per farlo utilizziamo la funzione nextPrime. Poi passiamo il valore restituito, insieme al vecchio dizionario,
+ * alla funzione extendDictionary, che è descritta dopo.
+ */
+
+struct dictionary addCouple(struct dictionary input, struct couple inCouple) {
+	struct node *temp = isKeyIn(input, inCouple.k);
 	int h, newC;
-	if(temp != NULL) { //se ho ottenuto un risultato positivo, temp punta al nodo del dizionario-copia che contiene tale chiave
-		temp -> valore.f = inCoppia.f; //aggiorno il valore della coppia per quel nodo
+	if(temp != NULL) {
+		temp -> value.f = inCouple.f;
 	}
 	else {
-		h = hash(inCoppia.k, input.c); //se la chiave non era presente nel dizionario, mi muovo all'indice del vettore per aggiungere la coppia in input
-		input.vettore[h] = append0(input.vettore[h], inCoppia); //aggiungo in testa alla lista in posizione h la coppia in input
-		input.n++; //aumento di uno il numero di coppie totali nel dizionario
-		if((input.n / input.c) >= MAXLENGHT) { //se il rapporto tra coppie presenti e dimensione del vettore del dizionario è >= MAXLENGHT
-			newC = nextPrimo(input.c, 1); //calcolo il valore della nuova dimensione del vettore
-			input = estendiDizionario(input, newC); //creo una copia del dizionario che abbia dimensione (del VETTORE) maggiore
-		}
-	}
-	return input; //restituisco la copia modificata del dizionario
-}
-struct dizionario removeCoppia(struct dizionario input, char *key) {
-	struct nodo *temp = isKeyIn(input, key); //dichiaro un puntatore al nodo che contiene la chiave, se esiste
-	int h = hash(key, input.c); //trovo l'indice del vettore del dizionario nel quale si dovrebbe trovare la chiave
-	if(temp != NULL) { //se la chiave esiste nel dizionario
-		if(temp == input.vettore[h]) { //se si trova nel primo nodo di una lista di trabocco
-			input.vettore[h] = delete0(input.vettore[h]);
-		}
-		else { //se si trova in un nodo diverso dal primo
-			temp -> prec = delete1(temp -> prec);
+		h = hash(inCouple.k, input.c);
+		input.dynArray[h] = append0(input.dynArray[h], inCouple);
+		input.n++;
+		if((input.n / input.c) >= MAXLENGTH) {
+			newC = nextPrime(input.c, 1);
+			input = extendDictionary(input, newC);
 		}
 	}
 	return input;
 }
-void stampaDizionario(struct dizionario input) {
+
+/* ENG:
+ * The function below is called by the function addCouple only when the dictionary must be extended.
+ * The first thing to do is to create a new void dictionary with m as dimension for its Dynamic Array (m is calculated in the addCouple function. It's a prime number,
+ * bigger than the dimension of the actual dictionary Dynamic Array).
+ * By using two for cycles we scroll through every node of every CatList of the old Dynamic Array. The outer cycle scrolls the Dynamic Array cells, while the inner one scrolls
+ * the CatList for that cell.
+ * Every node checked by these cycles contains a copy that's passed as argument, together with the new dictionary, to the addCouple function, that will cyclically build the new dictionary.
+ */
+
+struct dictionary extendDictionary(struct dictionary input, int m) {
+	struct dictionary output = newDictionary(m);
 	int i;
-	struct nodo *temp;
+	struct node *temp;
+	for(i = 0; i < input.c; i++) {
+		temp = input.dynArray[i];
+		for(; temp != NULL; temp = temp -> succ) {
+			/* ENG:
+			 * I copy the old dictionary couples in the new one by using the caller function itself (addCouple) without the possibility of falling into a never ending loop,
+			 * that could happen only by re-entering the 'if(input.n / input.c) >= MAXLENGTH' of the addCouple function. We obviously avoid this danger because the dimension of the Dynamic Array
+			 * of the new dictionary is big enough to never make the aforementioned inequality true.
+			 * ITA: 
+			 * Copio le coppie del vecchio dizionario in quello nuovo usando la stessa funzione chiamante (addCouple) senza il pericolo di capitare in un loop infinito,
+			 * che avverrebbe entrando in 'if(input.n / input.c) >= MAXLENGTH' della funzione addCouple. Questo pericolo è ovviamente evitato grazie al fatto che la dimensione
+			 * del vettore del nuovo dizionario è tale che la disuguaglianza sopra citata non potrà mai essere vera.
+			 */
+			output = addCouple(output, temp -> value);
+		}
+	}
+	return output;
+}
+
+/* ENG:
+ * The function below is used to remove a couple from a dictionary by taking the dictionary itself as input and the key that represents the couple to remove.
+ * We first call the isKeyIn function to know if that key is actually in the dictionary. If it is, we use the index returned by the hash function to reach the right CatList
+ * and, if the first node of the CatList is the same returned by the isKeyIn function (it's called temp here) we call the pop0 function, that removes the first node of a CatList.
+ * Else, we move to the node immediately before temp and we call the pop1 function to remove temp (it works because temp is the node in position 1 respect to its previous node.
+ * Check my CatList repository to better understand this concept).
+ * ITA:
+ * La funzione qui sotto è usata per rimuovere una coppia da un dizionario prendendo il dizionario stesso come input e la chiave che rappresenta la coppia da rimuovere.
+ * Prima chiamiamo la funzione isKeyIn per sapere se quella chiave è effettivamente nel dizionario. Se lo è, usiamo l'indice restituito dalla funzione hash per raggiungere la giusto Lista Concatenata
+ * e, se il primo nodo della Lista Concatenata è lo stesso restituito dalla funzione isKeyIn (è chiamato temp qui) chiamiamo la funzione pop0, che rimuove il primo nodo di una Lista Concatenata.
+ * Altrimenti, ci spostiamo al nodo immediatamente prima di temp e chiamiamo la funzione pop1 per rimuovere temp (funziona perchè temo è il nodo in posizione 1 rispetto al suo precedente.
+ * Guarda la mia repository sulle Liste Concatenate "CatList" per comprendere meglio questo concetto).
+ */
+
+struct dictionary removeCouple(struct dictionary input, char *key) {
+	struct node *temp = isKeyIn(input, key);
+	int h = hash(key, input.c);
+	if(temp != NULL) {
+		if(temp == input.dynArray[h]) {
+			input.dynArray[h] = pop0(input.dynArray[h]);
+		}
+		else {
+			temp -> prev = pop1(temp -> prev);
+		}
+	}
+	return input;
+}
+
+/* ENG:
+ * The last function we'll build needs to print a dictionary.
+ * It's very simple. We just need to scroll every node of every CatList, like we did in the extendDictionary function.
+ * ITA:
+ * L'ultima funzione che costruiremo serve a stampare un dizionario.
+ * E' molto semplice. Dobbiamo solamente scorrere ogni nodo di ogni Lista Concatenata, come abbiamo fatto nella funzione extendDictionary.
+ */
+
+void printDictionary(struct dictionary input) {
+	int i;
+	struct node *temp;
 	for(i = 0; i < input.c; i++) {
 		printf("%d -->\t", i);
-		temp = input.vettore[i];
+		temp = input.dynArray[i];
 		for(; temp != NULL; temp = temp -> succ) {
-			printf("(\"%s\", %0.1f), ", temp -> valore.k, temp -> valore.f);
+			printf("(\"%s\", %0.1f), ", temp -> value.k, temp -> value.f);
 		}
 		printf("\n");
 	}
 }
 
-//funzioni di utilità
+/* ENG:
+ * These are utility functions that were built to be used in the main function, to help to create a dictionary with a cycle.
+ * The firt one converts an integer into a string, the second one is used by the first to reverse the string created.
+ * ITA:
+ * Queste sono funzioni di utilità che sono state costruite per essere usate nella funzione main, per aiutare a costruire un dizionario con un ciclo.
+ * La prima converte un intero in una stringa, la seconda è utilizzata dalla prima per ribaltare la stringa creata.
+ */
 
-char *itoa(int n) { //converte un intero in stringa
+char *intToArray(int n) {
 	char *output;
-	if(n > 9999) {
-		printf("\nNUMBER TOO BIG! MAX 4 DIGITS\n");
-		return NULL;
-	}
-	output = malloc(5);
+	output = malloc((int) ceil(log10(n)) + 1);
 	int digit, i;
 	for(i = 0; n > 0; n /= 10, i++) {
 		digit = n % 10;
 		output[i] = '0' + digit;
-	}
-	for(; i < 4; i++) {
-		output[i] = '0';
 	}
 	output[i] = '\0';
 	reverse(output);
